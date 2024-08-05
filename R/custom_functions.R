@@ -311,15 +311,31 @@ custom_encrypt_data <- function(data_df,
 #' @param is_admin Determines if the user is an admin (optional).
 #' @param permission Determines the permission of the user (optional).
 #' @return A message indicating success or the specific error encountered.
+#' @export
 custom_add_user <- function(application,
                             include_master_key = TRUE, 
                             path_to_user_db = "../../base-data/database/shiny_users.sqlite",
                             start = NA,
                             expire = NA,
                             is_admin = FALSE,
-                            permission = NA) {
+                            permission = "") {
   username <- getPass::getPass("Enter the username for the new user:")
-  password <- getPass::getPass("Enter the password for the new user:")
+  is_user <- {
+    db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
+    
+    user_query <- paste0("SELECT user FROM credentials WHERE user = '", username, "'")
+    user <- DBI::dbGetQuery(db, user_query)
+    
+    dbDisconnect(db)
+    
+    nrow(user) > 0
+  }
+  
+  if(!is_user) {
+    password <- getPass::getPass("Enter the password for the new user:")
+    hashed_password <- scrypt::hashPassword(password)
+    is_hashed_password <- "1" 
+  }
   
   if(is.na(start)) {
     start <- lubridate::today()
@@ -336,6 +352,7 @@ custom_add_user <- function(application,
   
   R.utils::printf("User starts at %s and ends at %s \n", start, expire)
   
+  
   tryCatch({
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
     
@@ -343,34 +360,47 @@ custom_add_user <- function(application,
     user_name <- credentials[[1]]
     key <- credentials[[2]]
     
-    encrypted_master_key <- ""
+    if(is_user) {
+      applications_query <- paste0("SELECT applications FROM credentials WHERE user = '", username, "'")
+      applications <- DBI::dbGetQuery(db, applications_query)[1, ]
+      applications_list <- unlist(strsplit(as.character(applications), ";"))
+      
+      is_present <- application %in% applications_list
+      
+      if(is_present) {
+        application <- applications
+      } else {
+        application <- paste0(applications, ";", application)
+      }
+      
+      update_query <- "UPDATE credentials SET start = ?, expire = ?, admin = ?, permission = ?, applications = ? WHERE user = ?"
+      DBI::dbExecute(db, update_query, params = list(start, expire, is_admin, permission, application, username))
+      
+      return("User has been updated successfully")
+    }
+      
     if (include_master_key) {
       master_key_query <- paste0("SELECT encrypted_master_key FROM credentials WHERE user = '", user_name, "'")
       result <- DBI::dbGetQuery(db, master_key_query)
-      
+        
       if (nrow(result) == 0) {
         dbDisconnect(db)
         stop(sprintf("The user '%s' was not found in the users database.", user_name))
       }
-      
+        
       encrypted_master_key <- result$encrypted_master_key[1]
       master_key <- safer::decrypt_string(encrypted_master_key, key = key)
-      hashed_password <- scrypt::hashPassword(password)
-      is_hashed_password <- "1"
-      encrypted_master_key <- safer::encrypt_string(master_key, key = hashed_password)
-      
-      insert_query <- "INSERT INTO credentials (user, password, start, expire, admin, permission, encrypted_master_key, applications, is_hashed_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      DBI::dbExecute(db, insert_query, params = list(username, hashed_password, start, expire, is_admin, permission, encrypted_master_key, application, is_hashed_password))
-      
-      dbDisconnect(db)
+      encrypted_master_key <- safer::encrypt_string(master_key, key = password)
+        
     } else {
-      insert_query <- "INSERT INTO credentials (user, password) VALUES (?, ?)"
-      DBI::dbExecute(db, insert_query, params = list(username, scrypt::hashPassword(password)))
-      dbDisconnect(db)
+      encrypted_master_key <- ""  
     }
+      
     
-    return("User has been added successfully.")
+    insert_query <- "INSERT INTO credentials (user, password, start, expire, admin, permission, encrypted_master_key, applications, is_hashed_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    DBI::dbExecute(db, insert_query, params = list(username, hashed_password, start, expire, is_admin, permission, encrypted_master_key, application, is_hashed_password))
     dbDisconnect(db)
+    return("User has been added successfully.")
   }, error = function(e) {
     dbDisconnect(db)
     e$message <- custom_show_warnings(conditionMessage(e), "password")
