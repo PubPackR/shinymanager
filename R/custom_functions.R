@@ -109,6 +109,9 @@ custom_access_keys_2 <- function(name_of_secret,
       stop("Error: The name_of_secret does not exist in the database or the name_of_secret is incorrect")
     }
     secret <- safer::decrypt_string(data$encrypted_data[1], key = get_master_key$master_key)
+    if (name_of_secret == "bonus_db_key") {
+      secret <- sodium::hash(charToRaw(secret))
+    }
   }, error = function(e) {
     e$message <- custom_show_warnings(conditionMessage(e), "master_key")
     stop(e)
@@ -245,7 +248,7 @@ custom_decrypt_data <- function(decryption_key, encrypted_df) {
 
 #' custom_decrypt_data_2
 #'
-#' Decrypts a dataframe without having to provide the secret.
+#' Decrypts a dataframe completely without having to provide the secret.
 #'
 #' @param encrypted_df Encrypted data frames.
 #' @param name_of_secret The name of the secret that decrypts the data.
@@ -273,7 +276,7 @@ custom_decrypt_data_2 <- function(encrypted_df,
 
 #' custom_encrypt_data
 #'
-#' Encrypts a dataframe without having to provide the secret.
+#' Encrypts a dataframe completely without having to provide the secret.
 #'
 #' @param data_df The data frame to be encrypted.
 #' @param name_of_secret The name of the secret that decrypts the data.
@@ -295,6 +298,106 @@ custom_encrypt_data <- function(data_df,
     e$message <- custom_show_warnings(conditionMessage(e))
     stop(e)
   })  
+}
+
+
+#' custom_encrypt_db
+#'
+#' This function is used to encrypt a dataframe that is saved within a sqlite database.
+#' You are able to specifiy which columns you want to encrypt.
+#'
+#' @param df The dataframe to be encrypted.
+#' @param name_of_secret The name of the secret that encrypts the data.
+#' @param columns_to_encrypt The columns that need to be encrpyted.
+#' @param base_app Boolean indicating if this function is used in a base_app (Optional)
+#' @param key The key (Optional).
+#' @param path_to_keys_db Path to keys_database.sqlite (optional).
+#' @param path_to_user_db Path to shiny_users.sqlite (optional).
+#' @return The specified columns of the database table gets encrypted
+#' @export
+custom_encrypt_db <- function(df, 
+                              name_of_secret, 
+                              columns_to_encrypt, 
+                              base_app = FALSE, 
+                              key = NULL,
+                              path_to_keys_db = "../../base-data/database/keys_database.sqlite",
+                              path_to_user_db = "../../base-data/database/shiny_users.sqlite") {
+  df_encrypted <- df
+  columns_to_encrypt <- columns_to_encrypt %||% names(df)
+  
+  if(!base_app) {
+    public_key <- custom_access_keys_2(name_of_secret,
+                                       path_to_keys_db = path_to_keys_db,
+                                       path_to_user_db = path_to_user_db) 
+    
+    encrypted_api_key <- readLines("../../keys/BonusDB/bonusDBKey.txt")
+    
+    key <- safer::decrypt_string(encrypted_api_key, key = public_key)  
+  }
+  
+  encrypted_api_key <- readLines("../../keys/BonusDB/bonusDBKey.txt")
+  
+  key <- safer::decrypt_string(encrypted_api_key, key = public_key)
+  
+  df_encrypted[columns_to_encrypt] <- lapply(df[columns_to_encrypt], function(col) {
+    sapply(col, function(value) {
+      iv <- rand_bytes(16)
+      encrypted <- aes_cbc_encrypt(charToRaw(value), key = charToRaw(key), iv = iv)
+      base64enc::base64encode(c(iv, encrypted))
+    })
+  })
+  return(as.data.frame(df_encrypted, stringsAsFactors = FALSE))
+}
+
+
+#' custom_decrypt_db
+#'
+#' This function is used to decrypt a dataframe that is saved within a sqlite database.
+#' You are able to specifiy which columns you want to decrypt.
+#'
+#' @param df The dataframe to be decrypted.
+#' @param name_of_secret The name of the secret that decrypts the data.
+#' @param columns_to_decrypt The columns that need to be decrpyted.
+#' @param base_app Boolean indicating if this function is used in a base_app (Optional).
+#' @param key The key (Optional).
+#' @param path_to_keys_db Path to keys_database.sqlite (optional).
+#' @param path_to_user_db Path to shiny_users.sqlite (optional).
+#' @return The specified columns of the database table gets decrypted
+#' @export
+custom_decrypt_db <- function(df, 
+                              name_of_secret, 
+                              columns_to_decrypt, 
+                              base_app = FALSE, 
+                              key = NULL,
+                              path_to_keys_db = "../../base-data/database/keys_database.sqlite",
+                              path_to_user_db = "../../base-data/database/shiny_users.sqlite") {
+  df_decrypted <- df
+  columns_to_decrpyt <- columns_to_decrypt %||% names(df)  
+  
+  if(!base_app) {
+    public_key <- custom_access_keys_2(name_of_secret,
+                                       path_to_keys_db = path_to_keys_db,
+                                       path_to_user_db = path_to_user_db) 
+    
+    encrypted_api_key <- readLines("../../keys/BonusDB/bonusDBKey.txt")
+    
+    key <- safer::decrypt_string(encrypted_api_key, key = public_key)  
+  }
+  
+  df_decrypted[columns_to_decrypt] <- lapply(df[columns_to_decrypt], function(col) {
+    sapply(col, function(value) {
+      if (!is.na(value)) {
+        data <- base64enc::base64decode(value)
+        iv <- data[1:16] 
+        encrypted_data <- data[-(1:16)] 
+        decrypted <- aes_cbc_decrypt(encrypted_data, key = charToRaw(key), iv = iv)
+        rawToChar(decrypted)
+      } else {
+        NA
+      }
+    })
+  })
+  return(as.data.frame(df_decrypted, stringsAsFactors = FALSE))
 }
 
 
