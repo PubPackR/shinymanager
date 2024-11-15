@@ -332,10 +332,6 @@ custom_encrypt_db <- function(df,
     key <- safer::decrypt_string(encrypted_api_key, key = public_key)  
   }
   
-  encrypted_api_key <- readLines("../../keys/BonusDB/bonusDBKey.txt")
-  
-  key <- safer::decrypt_string(encrypted_api_key, key = public_key)
-  
   df_encrypted[columns_to_encrypt] <- lapply(df[columns_to_encrypt], function(col) {
     sapply(col, function(value) {
       iv <- rand_bytes(16)
