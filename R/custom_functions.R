@@ -582,3 +582,40 @@ custom_load_data_in_module <- function(data_file, name_of_secret) {
   return(data_df)
   
 }
+
+#' custom_filter_teamlead
+#' 
+#' Filters sales_teams dataframe to extract only Sales MA in 
+#' specific team of Teamlead (employee).
+#'
+#' @param sales_teams dataframe containing information about all sales employees
+#' @param employee sales employee/logged in user name
+#' @return return name of vector of names of Sales Mitarbeiter in Team
+custom_filter_teamleads = function(sales_teams, employee) {
+  if (employee %in% sales_teams$Team) {
+    sales_teams <- sales_teams %>%
+      filter(Team == employee) %>%
+      mutate(Mitarbeiter = paste(Vorname, Nachname)) %>%
+      select(Team, Mitarbeiter)
+    
+    neuer_mitarbeiter <- unique(sales_teams$Team)
+    neue_zeile <- data.frame(Team = neuer_mitarbeiter, Mitarbeiter = neuer_mitarbeiter)
+    sales_teams <- bind_rows(sales_teams, neue_zeile)
+    sales_teams <- sales_teams %>%
+      select(Mitarbeiter)
+  } else if (employee == "produkt") {
+    sales_teams <- sales_teams %>% 
+      mutate(Mitarbeiter = paste(Vorname, Nachname)) %>%
+      distinct(Mitarbeiter)
+  } else {
+    sales_teams <- sales_teams %>% 
+      mutate(Mitarbeiter = paste(Vorname, Nachname)) %>% 
+      distinct(Mitarbeiter) %>% 
+      filter(employee == Mitarbeiter)
+  }
+  
+  employee <- sales_teams[, "Mitarbeiter"]
+  employee_list <- paste(shQuote(employee, type = "sh"), collapse = ", ")
+  
+  return(employee_list)
+}
