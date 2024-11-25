@@ -4,12 +4,14 @@
 \alias{custom_filter_teamleads}
 \title{custom_filter_teamlead}
 \usage{
-custom_filter_teamleads(sales_teams, employee)
+custom_filter_teamleads(sales_teams, employee, database_needed)
 }
 \arguments{
 \item{sales_teams}{dataframe containing information about all sales employees}
 
 \item{employee}{sales employee/logged in user name}
+
+\item{datebase_needed}{Logical value (TRUE or FALSE) indicating if the database format is needed.}
 }
 \value{
 return name of vector of names of Sales Mitarbeiter in Team

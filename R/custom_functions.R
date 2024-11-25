@@ -590,8 +590,9 @@ custom_load_data_in_module <- function(data_file, name_of_secret) {
 #'
 #' @param sales_teams dataframe containing information about all sales employees
 #' @param employee sales employee/logged in user name
+#' @param datebase_needed Logical value (TRUE or FALSE) indicating if the database format is needed.
 #' @return return name of vector of names of Sales Mitarbeiter in Team
-custom_filter_teamleads = function(sales_teams, employee) {
+custom_filter_teamleads = function(sales_teams, employee, database_needed) {
   if (employee %in% sales_teams$Team) {
     sales_teams <- sales_teams %>%
       filter(Team == employee) %>%
@@ -613,9 +614,11 @@ custom_filter_teamleads = function(sales_teams, employee) {
       distinct(Mitarbeiter) %>% 
       filter(employee == Mitarbeiter)
   }
-  
-  employee <- sales_teams[, "Mitarbeiter"]
-  employee_list <- paste(shQuote(employee, type = "sh"), collapse = ", ")
+     employee_list <- sales_teams[, "Mitarbeiter"]
+     
+  if (database_needed) {
+    employee_list <- paste(shQuote(employee_list, type = "sh"), collapse = ", ")
+  } 
   
   return(employee_list)
 }
