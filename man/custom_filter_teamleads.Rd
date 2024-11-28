@@ -4,12 +4,19 @@
 \alias{custom_filter_teamleads}
 \title{custom_filter_teamlead}
 \usage{
-custom_filter_teamleads(sales_teams, employee, database_needed)
+custom_filter_teamleads(
+  sales_teams,
+  employee,
+  user_permission,
+  database_needed
+)
 }
 \arguments{
 \item{sales_teams}{dataframe containing information about all sales employees}
 
 \item{employee}{sales employee/logged in user name}
+
+\item{user_permission}{permission level of the user}
 
 \item{datebase_needed}{Logical value (TRUE or FALSE) indicating if the database format is needed.}
 }

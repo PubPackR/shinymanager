@@ -590,9 +590,10 @@ custom_load_data_in_module <- function(data_file, name_of_secret) {
 #'
 #' @param sales_teams dataframe containing information about all sales employees
 #' @param employee sales employee/logged in user name
+#' @param user_permission permission level of the user
 #' @param datebase_needed Logical value (TRUE or FALSE) indicating if the database format is needed.
 #' @return return name of vector of names of Sales Mitarbeiter in Team
-custom_filter_teamleads = function(sales_teams, employee, database_needed) {
+custom_filter_teamleads = function(sales_teams, employee, user_permission, database_needed) {
   if (employee %in% sales_teams$Team) {
     sales_teams <- sales_teams %>%
       filter(Team == employee) %>%
@@ -604,7 +605,7 @@ custom_filter_teamleads = function(sales_teams, employee, database_needed) {
     sales_teams <- bind_rows(sales_teams, neue_zeile)
     sales_teams <- sales_teams %>%
       select(Mitarbeiter)
-  } else if (employee == "produkt") {
+  } else if (employee == "produkt"|user_permission == 2) {
     sales_teams <- sales_teams %>% 
       mutate(Mitarbeiter = paste(Vorname, Nachname)) %>%
       distinct(Mitarbeiter)
@@ -622,3 +623,32 @@ custom_filter_teamleads = function(sales_teams, employee, database_needed) {
   
   return(employee_list)
 }
+
+#' custom_retrieve_user_role
+#' 
+#' Retrieves the role of a user from the database.
+#'
+#' @param path_to_user_db Path to the SQLite database containing user credentials.
+#' @return Returns the role name of the user.
+custom_retrieve_user_role <- function (path_to_user_db = "../../base-data/database/shiny_users.sqlite"){
+  user_name <- custom_retrieve_credentials(password = FALSE)[[1]]
+  permission <- tryCatch({
+    db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
+    on.exit(DBI::dbDisconnect(db), add = TRUE)
+    permission_query <- paste0("SELECT permission FROM credentials WHERE user = '", 
+                               user_name, "'")
+    result <- DBI::dbGetQuery(db, permission_query)
+    if (length(result$permission) == 0) {
+      stop(sprintf("The user '%s' was not found in the users database.", 
+                   user_name))
+    }
+    result$permission
+  }, error = function(e) {
+    e$message <- custom_show_warnings(conditionMessage(e), 
+                                      "user_db")
+    stop(e)
+  })
+  
+  return(permission)
+}
+
