@@ -204,7 +204,7 @@ custom_delete_secret <- function(name_of_secret,
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_keys_db)
     on.exit(DBI::dbDisconnect(db), add = TRUE)
     delete_query <- paste0("DELETE FROM keys_database WHERE name = '", name_of_secret, "'")
-    DBI::dbExecute(db, put_query)
+    DBI::dbExecute(db, delete_query)
     cat("Secret has been deleted")
   }, error = function(e) {
     e$message <- custom_show_warnings(conditionMessage(e))
