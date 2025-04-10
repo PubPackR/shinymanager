@@ -5,11 +5,14 @@
 \title{custom_permission_level}
 \usage{
 custom_permission_level(
-  path_to_user_db = "../../base-data/database/shiny_users.sqlite"
+  path_to_user_db = "../../base-data/database/shiny_users.sqlite",
+  preset_key = NA_character_
 )
 }
 \arguments{
 \item{path_to_user_db}{The path to the user database. Default is "../../base-data/database/shiny_users.sqlite". (optional)}
+
+\item{preset_key}{The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)}
 }
 \value{
 An integer representing the user's permission level.

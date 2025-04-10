@@ -4,12 +4,18 @@
 \alias{custom_retrieve_credentials}
 \title{custom_retrieve_credentials}
 \usage{
-custom_retrieve_credentials(username = TRUE, password = TRUE)
+custom_retrieve_credentials(
+  username = TRUE,
+  password = TRUE,
+  preset_key = NA_character_
+)
 }
 \arguments{
 \item{username}{Boolean indicating if the user_name should be retrieved. Default is TRUE (optional).}
 
 \item{password}{Boolean indicating if the password should be retrieved. Default is TRUE (optional).}
+
+\item{preset_key}{The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)}
 }
 \value{
 List which contains the user_name and password

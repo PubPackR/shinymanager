@@ -65,12 +65,14 @@ custom_access_keys <- function(requested_data){
 #' @param name_of_secret Name of the secret to be loaded.
 #' @param path_to_keys_db Path to keys_database.sqlite (optional).
 #' @param path_to_user_db Path to shiny_users.sqlite (optional).
+#' @param preset_key The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)
 #' @return Decrypted secret for the requested_data.
 #' @export
 custom_access_keys_2 <- function(name_of_secret,
                                  path_to_keys_db = "../../base-data/database/keys_database.sqlite",
-                                 path_to_user_db = "../../base-data/database/shiny_users.sqlite") {
-  credentials <- custom_retrieve_credentials()
+                                 path_to_user_db = "../../base-data/database/shiny_users.sqlite", 
+                                 preset_key = NA_character_) {
+  credentials <- custom_retrieve_credentials(preset_key = preset_key)
   user_name <- credentials[[1]]
   password <- credentials[[2]]
   
@@ -400,11 +402,12 @@ custom_decrypt_db <- function(df,
 #' This function does not need any parameters.
 #'
 #' @param path_to_user_db The path to the user database. Default is "../../base-data/database/shiny_users.sqlite". (optional)
+#' @param preset_key The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)
 #' @return An integer representing the user's permission level.
 #' @export
-custom_permission_level <- function(path_to_user_db = "../../base-data/database/shiny_users.sqlite") {
+custom_permission_level <- function(path_to_user_db = "../../base-data/database/shiny_users.sqlite", preset_key = NA_character_) {
   
-  user_name <- custom_retrieve_credentials(password = FALSE)[[1]]
+  user_name <- custom_retrieve_credentials(password = FALSE, preset_key = preset_key)[[1]]
   
   permission <- tryCatch({
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
@@ -447,10 +450,11 @@ custom_permission_level <- function(path_to_user_db = "../../base-data/database/
 #'
 #' This function is used to retrieve the username of the user.
 #'
+#' @param preset_key The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)
 #' @return The username
 #' @export
-custom_username <- function() {
-  user_name <- custom_retrieve_credentials(password = FALSE)[[1]]
+custom_username <- function(preset_key = NA_character_) {
+  user_name <- custom_retrieve_credentials(password = FALSE, preset_key = preset_key)[[1]]
   return(user_name)
 }
 
@@ -461,9 +465,10 @@ custom_username <- function() {
 #'
 #' @param username Boolean indicating if the user_name should be retrieved. Default is TRUE (optional).
 #' @param password Boolean indicating if the password should be retrieved. Default is TRUE (optional).
+#' @param preset_key The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)
 #' @return List which contains the user_name and password
 #' @export
-custom_retrieve_credentials <- function(username = TRUE, password = TRUE){
+custom_retrieve_credentials <- function(username = TRUE, password = TRUE, preset_key = NA_character_) {
   is_interactive <- custom_interactive()
   
   retrieve_user_name <- function(){
@@ -482,7 +487,11 @@ custom_retrieve_credentials <- function(username = TRUE, password = TRUE){
       return()
     }
     if(is_interactive) {
-      return(getPass::getPass(msg = "Gib das Passwort für den Produktnutzer ein:"))
+      if(is.na(preset_key)) {
+        return(getPass::getPass(msg = "Gib das Passwort für den Produktnutzer ein:"))
+      } else {
+        return(preset_key)
+      }
     } else {
       return(key()) 
     }
@@ -630,10 +639,11 @@ custom_filter_teamleads = function(sales_teams, employee, user_permission, datab
 #' Retrieves the role of a user from the database.
 #'
 #' @param path_to_user_db Path to the SQLite database containing user credentials.
+#' @param preset_key The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)
 #' @return Returns the role name of the user.
 #' @export
-custom_retrieve_user_role <- function (path_to_user_db = "../../base-data/database/shiny_users.sqlite"){
-  user_name <- custom_retrieve_credentials(password = FALSE)[[1]]
+custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/database/shiny_users.sqlite", preset_key = NA_character_){
+  user_name <- custom_retrieve_credentials(password = FALSE, preset_key = preset_key)[[1]]
   permission <- tryCatch({
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
     on.exit(DBI::dbDisconnect(db), add = TRUE)

@@ -4,7 +4,10 @@
 \alias{custom_username}
 \title{custom_username}
 \usage{
-custom_username()
+custom_username(preset_key = NA_character_)
+}
+\arguments{
+\item{preset_key}{The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)}
 }
 \value{
 The username

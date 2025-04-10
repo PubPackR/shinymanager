@@ -7,7 +7,8 @@
 custom_access_keys_2(
   name_of_secret,
   path_to_keys_db = "../../base-data/database/keys_database.sqlite",
-  path_to_user_db = "../../base-data/database/shiny_users.sqlite"
+  path_to_user_db = "../../base-data/database/shiny_users.sqlite",
+  preset_key = NA_character_
 )
 }
 \arguments{
@@ -16,6 +17,8 @@ custom_access_keys_2(
 \item{path_to_keys_db}{Path to keys_database.sqlite (optional).}
 
 \item{path_to_user_db}{Path to shiny_users.sqlite (optional).}
+
+\item{preset_key}{The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)}
 }
 \value{
 Decrypted secret for the requested_data.
