@@ -430,7 +430,7 @@ custom_permission_level <- function(path_to_user_db = "../../base-data/database/
   determine_permission_level <- function(permission) {
     permission_level <- tryCatch({
       dplyr::case_when(
-        permission %in% c("Admin", "Entwickler", "Geschaeftsfuerung", "Headof", "Verwaltung") ~ 2,
+        permission %in% c("Admin", "Entwickler", "Geschaeftsfuehrung", "Headof", "Verwaltung") ~ 2,
         permission %in% c("Teamlead") ~ 1,
         TRUE ~ 0
       )
