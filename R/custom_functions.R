@@ -664,3 +664,44 @@ custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/databas
   return(permission)
 }
 
+#' Get User Scope from PostgreSQL
+#'
+#' Retrieves the user-specific service scopes from the database based on the authenticated user name
+#' and their role. The function queries the `get_service_users_in_scope` database function and
+#' returns a list of user IDs for each connected service.
+#'
+#' @param con A valid PostgreSQL database connection (e.g., from `DBI::dbConnect`).
+#' @param res_auth A list or object containing at least the user name in `res_auth$user`.
+#'
+#' @return A named list with vectors of service user IDs for the following services:
+#' \describe{
+#'   \item{crm}{User IDs for the CRM system.}
+#'   \item{billomat_templates}{User IDs for Billomat templates.}
+#'   \item{gsheet_videocalls}{User IDs for Google Sheets Video Calls.}
+#'   \item{sipgate}{User IDs for Sipgate.}
+#'   \item{msgraph}{User IDs for Microsoft Graph.}
+#' }
+#'
+#' @details
+#' The user role is automatically retrieved via `custom_retrieve_user_role()`. If the user role
+#' falls under certain privileged roles, a placeholder user may be used in the query inside the database.
+#'
+#' @export
+custom_get_user_scope <- function(con, res_auth) {
+  
+  user_name <- res_auth$user  
+  user_role <- custom_retrieve_user_role()
+  
+  result <- dbGetQuery(con, "SELECT * FROM get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
+  
+  # Process or reshape the result if needed
+  scope_list <- list(
+    crm = (result %>% filter(connected_service == "crm"))$service_user_id,
+    billomat_templates = (result %>% filter(connected_service == "billomat_templates"))$service_user_id,
+    gsheet_videocalls = (result %>% filter(connected_service == "gsheet_videocalls"))$service_user_id,
+    sipgate = (result %>% filter(connected_service == "sipgate"))$service_user_id,
+    msgraph = (result %>% filter(connected_service == "msgraph"))$service_user_id
+  )
+  
+  return(scope_list)
+}
