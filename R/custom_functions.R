@@ -408,7 +408,9 @@ custom_decrypt_db <- function(df,
 custom_permission_level <- function(path_to_user_db = "../../base-data/database/shiny_users.sqlite", preset_key = NA_character_) {
   
   user_name <- custom_retrieve_credentials(password = FALSE, preset_key = preset_key)[[1]]
-  
+  if(custom_interactive()) {
+    message("Please use the new function custom_get_user_scope to retrieve the data visible for user.")
+  }
   permission <- tryCatch({
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
     on.exit(DBI::dbDisconnect(db), add = TRUE)
@@ -644,6 +646,38 @@ custom_filter_teamleads = function(sales_teams, employee, user_permission, datab
 #' @export
 custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/database/shiny_users.sqlite", preset_key = NA_character_){
   user_name <- custom_retrieve_credentials(password = FALSE, preset_key = preset_key)[[1]]
+
+  message("The function custom_retrieve_user_role is depracated please use custom_retrieve_user_role_v2() instead")
+
+  permission <- tryCatch({
+    db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
+    on.exit(DBI::dbDisconnect(db), add = TRUE)
+    permission_query <- paste0("SELECT permission FROM credentials WHERE user = '", 
+                               user_name, "'")
+    result <- DBI::dbGetQuery(db, permission_query)
+    if (length(result$permission) == 0) {
+      stop(sprintf("The user '%s' was not found in the users database.", 
+                   user_name))
+    }
+    result$permission
+  }, error = function(e) {
+    e$message <- custom_show_warnings(conditionMessage(e), 
+                                      "user_db")
+    stop(e)
+  })
+  
+  return(permission)
+}
+
+#' custom_retrieve_user_role_v2
+#' 
+#' Retrieves the role of a user from the database.
+#'
+#' @param path_to_user_db Path to the SQLite database containing user credentials.
+#' @param preset_key The key to decrypt the data. Default is NA_character_. Please Remove the Key immediately from the environment after your authentication. (optional)
+#' @return Returns the role name of the user.
+#' @export
+custom_retrieve_user_role_v2 <- function(user_name, path_to_user_db = "../../base-data/database/shiny_users.sqlite", preset_key = NA_character_){
   permission <- tryCatch({
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
     on.exit(DBI::dbDisconnect(db), add = TRUE)
@@ -686,6 +720,7 @@ custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/databas
 #' @details
 #' The user role is automatically retrieved via `custom_retrieve_user_role()`. If the user role
 #' falls under certain privileged roles, a placeholder user may be used in the query inside the database.
+#' get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin
 #'
 #' @export
 custom_get_user_scope <- function(con, user_name, user_role) {
