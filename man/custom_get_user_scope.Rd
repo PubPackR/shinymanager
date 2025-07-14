@@ -31,4 +31,5 @@ returns a list of user IDs for each connected service.
 \details{
 The user role is automatically retrieved via `custom_retrieve_user_role()`. If the user role
 falls under certain privileged roles, a placeholder user may be used in the query inside the database.
+get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin
 }
