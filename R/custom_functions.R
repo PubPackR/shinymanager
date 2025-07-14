@@ -671,7 +671,8 @@ custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/databas
 #' returns a list of user IDs for each connected service.
 #'
 #' @param con A valid PostgreSQL database connection (e.g., from `DBI::dbConnect`).
-#' @param res_auth A list or object containing at least the user name in `res_auth$user`.
+#' @param user_name the name of the user from the login
+#' @param user_role  the user role - can be retrieved via `custom_retrieve_user_role()` but should be done before the function call
 #'
 #' @return A named list with vectors of service user IDs for the following services:
 #' \describe{
@@ -687,10 +688,8 @@ custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/databas
 #' falls under certain privileged roles, a placeholder user may be used in the query inside the database.
 #'
 #' @export
-custom_get_user_scope <- function(con, res_auth) {
+custom_get_user_scope <- function(con, user_name, user_role) {
   
-  user_name <- res_auth$user  
-  user_role <- custom_retrieve_user_role()
   
   result <- dbGetQuery(con, "SELECT * FROM get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
   

@@ -4,12 +4,14 @@
 \alias{custom_get_user_scope}
 \title{Get User Scope from PostgreSQL}
 \usage{
-custom_get_user_scope(con, res_auth)
+custom_get_user_scope(con, user_name, user_role)
 }
 \arguments{
 \item{con}{A valid PostgreSQL database connection (e.g., from `DBI::dbConnect`).}
 
-\item{res_auth}{A list or object containing at least the user name in `res_auth$user`.}
+\item{user_name}{the name of the user from the login}
+
+\item{user_role}{the user role - can be retrieved via `custom_retrieve_user_role()` but should be done before the function call}
 }
 \value{
 A named list with vectors of service user IDs for the following services:
