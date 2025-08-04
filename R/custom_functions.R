@@ -728,14 +728,7 @@ custom_get_user_scope <- function(con, user_name, user_role) {
   
   result <- dbGetQuery(con, "SELECT * FROM get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
   
-  # Process or reshape the result if needed
-  scope_list <- list(
-    crm = (result %>% filter(connected_service == "crm"))$service_user_id,
-    billomat_templates = (result %>% filter(connected_service == "billomat_templates"))$service_user_id,
-    gsheet_videocalls = (result %>% filter(connected_service == "gsheet_videocalls"))$service_user_id,
-    sipgate = (result %>% filter(connected_service == "sipgate"))$service_user_id,
-    msgraph = (result %>% filter(connected_service == "msgraph"))$service_user_id
-  )
+  scope_list <- split(result$service_user_id, result$connected_service)
   
   return(scope_list)
 }
