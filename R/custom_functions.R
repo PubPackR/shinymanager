@@ -707,8 +707,14 @@ custom_retrieve_user_role_v2 <- function(user_name, path_to_user_db = "../../bas
 #' @param con A valid PostgreSQL database connection (e.g., from `DBI::dbConnect`).
 #' @param user_name the name of the user from the login
 #' @param user_role  the user role - can be retrieved via `custom_retrieve_user_role()` but should be done before the function call
+#' @param with_months Logical. If FALSE (default), returns a named list of service_user_id vectors
+#'   (backward-compatible). If TRUE, returns a named list of data.frames with columns
+#'   \code{service_user_id} and \code{month}, covering the full employment period of each
+#'   scoped person. Use this for historical right-joins.
 #'
-#' @return A named list with vectors of service user IDs for the following services:
+#' @return If \code{with_months = FALSE}: a named list with vectors of service user IDs per service.
+#'   If \code{with_months = TRUE}: a named list of data.frames with columns \code{service_user_id}
+#'   and \code{month} (first day of each month as Date) per service.
 #' \describe{
 #'   \item{crm}{User IDs for the CRM system.}
 #'   \item{billomat_templates}{User IDs for Billomat templates.}
@@ -720,15 +726,26 @@ custom_retrieve_user_role_v2 <- function(user_name, path_to_user_db = "../../bas
 #' @details
 #' The user role is automatically retrieved via `custom_retrieve_user_role()`. If the user role
 #' falls under certain privileged roles, a placeholder user may be used in the query inside the database.
-#' get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin
+#' get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin.
+#'
+#' When \code{with_months = TRUE}, the DB function must return an additional \code{month} column.
+#' Use this mode together with a right-join on \code{(service_user_id, month)} to correctly
+#' attribute historical data to the team that was active at that time.
 #'
 #' @export
-custom_get_user_scope <- function(con, user_name, user_role) {
-  
-  
+custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE) {
+
   result <- dbGetQuery(con, "SELECT * FROM get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
-  
-  scope_list <- split(result$service_user_id, result$connected_service)
-  
-  return(scope_list)
+
+  if (!with_months) {
+    if ("month" %in% names(result)) {
+      # New DB format: filter to current month to restore backward-compatible behaviour
+      current_month <- as.Date(format(Sys.Date(), "%Y-%m-01"))
+      result <- result[result$month == current_month, ]
+    }
+    deduped <- unique(result[, c("connected_service", "service_user_id")])
+    return(split(deduped$service_user_id, deduped$connected_service))
+  }
+
+  split(result[, c("service_user_id", "month")], result$connected_service)
 }
