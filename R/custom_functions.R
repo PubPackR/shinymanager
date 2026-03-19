@@ -429,6 +429,8 @@ custom_permission_level <- function(path_to_user_db = "../../base-data/database/
   })
   
 
+  # TODO: This list must stay in sync with public.user_roles in the database.
+  # When a PostgreSQL connection is available, use custom_get_permission_level(con, user_role) instead.
   determine_permission_level <- function(permission) {
     permission_level <- tryCatch({
       dplyr::case_when(
@@ -737,6 +739,14 @@ custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE
 
   result <- dbGetQuery(con, "SELECT * FROM get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
 
+  if (nrow(result) == 0) {
+    message(sprintf(
+      "custom_get_user_scope: No scope entries found for user '%s' (role: '%s').",
+      user_name, user_role
+    ))
+    return(list())
+  }
+
   if (!with_months) {
     if ("month" %in% names(result)) {
       # New DB format: filter to current month to restore backward-compatible behaviour
@@ -748,4 +758,38 @@ custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE
   }
 
   split(result[, c("service_user_id", "month")], result$connected_service)
+}
+
+
+#' Get Privileged Roles from Database
+#'
+#' Fetches all role names with permission level >= 2 from \code{public.user_roles}.
+#' Use this when a PostgreSQL connection is available and you need the current
+#' list of privileged roles (e.g. for scope checks or UI logic).
+#'
+#' @param con A valid PostgreSQL database connection (e.g., from \code{DBI::dbConnect}).
+#' @return Character vector of role names with \code{perm_level >= 2}.
+#' @export
+custom_get_privileged_roles <- function(con) {
+  dbGetQuery(con, "SELECT role_name FROM public.user_roles WHERE perm_level >= 2")$role_name
+}
+
+
+#' Get Permission Level for a Role from Database
+#'
+#' Fetches the numeric permission level for a given role from \code{public.user_roles}.
+#' Use this as an alternative to the hardcoded mapping in \code{custom_permission_level()}
+#' when a PostgreSQL connection is available.
+#'
+#' @param con A valid PostgreSQL database connection (e.g., from \code{DBI::dbConnect}).
+#' @param user_role Character. The role string from the shiny_users.sqlite credentials table.
+#' @return Integer: \code{0} (regular), \code{1} (teamlead), \code{2} (privileged).
+#'   Returns \code{0} if the role is not found in the table.
+#' @export
+custom_get_permission_level <- function(con, user_role) {
+  result <- dbGetQuery(con,
+    "SELECT perm_level FROM public.user_roles WHERE role_name = $1",
+    params = list(user_role))
+  if (nrow(result) == 0) return(0L)
+  as.integer(result$perm_level)
 }

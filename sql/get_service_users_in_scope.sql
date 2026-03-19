@@ -4,7 +4,7 @@
 -- one row per (person_id, month). This allows R modules to perform
 -- historical right-joins via custom_get_user_scope(with_months = TRUE).
 --
--- DEPLOY ORDER: get_person_scope_by_fullname.sql must be deployed first.
+-- DEPLOY ORDER: create_user_roles.sql + get_person_scope_by_fullname.sql must be deployed first.
 
 -- DROP FUNCTION IF EXISTS public.get_service_users_in_scope(text, text);
 
@@ -21,9 +21,11 @@ AS $BODY$
 DECLARE
     effective_full_name TEXT;
 BEGIN
-    -- Override full_name based on user_role
-    IF user_role IN ('Entwickler', 'Admin', 'Geschaeftsfuehrung', 'Verwaltung', 'Headof') THEN
-        effective_full_name := 'Studyflix Placeholder';  -- Example fallback user
+    -- Override full_name for privileged roles (perm_level >= 2) using public.user_roles as
+    -- single source of truth. Note: Studyflix Placeholder must have full org coverage in
+    -- Personio for privileged users to receive complete scope.
+    IF EXISTS (SELECT 1 FROM public.user_roles WHERE role_name = user_role AND perm_level >= 2) THEN
+        effective_full_name := 'Studyflix Placeholder';
     ELSE
         effective_full_name := full_name;
     END IF;
