@@ -1,12 +1,12 @@
--- FUNCTION: public.get_person_scope_by_fullname(text)
+-- FUNCTION: config.get_person_scope_by_fullname(text)
 -- Extends the original function to return one row per (person_id, month),
 -- covering the full employment period of each scoped person (derived from
 -- personio_person_position_history). This enables historical right-joins
 -- in R modules using custom_get_user_scope(with_months = TRUE).
 
--- DROP FUNCTION IF EXISTS public.get_person_scope_by_fullname(text);
+-- DROP FUNCTION IF EXISTS config.get_person_scope_by_fullname(text);
 
-CREATE OR REPLACE FUNCTION public.get_person_scope_by_fullname(
+CREATE OR REPLACE FUNCTION config.get_person_scope_by_fullname(
 	full_name text)
     RETURNS TABLE(person_id bigint, month date)
     LANGUAGE 'plpgsql'
@@ -75,5 +75,5 @@ END;
 
 $BODY$;
 
-ALTER FUNCTION public.get_person_scope_by_fullname(text)
+ALTER FUNCTION config.get_person_scope_by_fullname(text)
     OWNER TO postgres;

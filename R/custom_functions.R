@@ -429,7 +429,7 @@ custom_permission_level <- function(path_to_user_db = "../../base-data/database/
   })
   
 
-  # TODO: This list must stay in sync with public.user_roles in the database.
+  # TODO: This list must stay in sync with config.shiny_user_roles in the database.
   # When a PostgreSQL connection is available, use custom_get_permission_level(con, user_role) instead.
   determine_permission_level <- function(permission) {
     permission_level <- tryCatch({
@@ -728,7 +728,7 @@ custom_retrieve_user_role_v2 <- function(user_name, path_to_user_db = "../../bas
 #' @details
 #' The user role is automatically retrieved via `custom_retrieve_user_role()`. If the user role
 #' falls under certain privileged roles, a placeholder user may be used in the query inside the database.
-#' get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin.
+#' config.get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin.
 #'
 #' When \code{with_months = TRUE}, the DB function must return an additional \code{month} column.
 #' Use this mode together with a right-join on \code{(service_user_id, month)} to correctly
@@ -737,7 +737,7 @@ custom_retrieve_user_role_v2 <- function(user_name, path_to_user_db = "../../bas
 #' @export
 custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE) {
 
-  result <- dbGetQuery(con, "SELECT * FROM get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
+  result <- dbGetQuery(con, "SELECT * FROM config.get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
 
   if (nrow(result) == 0) {
     message(sprintf(
@@ -763,7 +763,7 @@ custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE
 
 #' Get Privileged Roles from Database
 #'
-#' Fetches all role names with permission level >= 2 from \code{public.user_roles}.
+#' Fetches all role names with permission level >= 2 from \code{config.shiny_user_roles}.
 #' Use this when a PostgreSQL connection is available and you need the current
 #' list of privileged roles (e.g. for scope checks or UI logic).
 #'
@@ -771,13 +771,13 @@ custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE
 #' @return Character vector of role names with \code{perm_level >= 2}.
 #' @export
 custom_get_privileged_roles <- function(con) {
-  dbGetQuery(con, "SELECT role_name FROM public.user_roles WHERE perm_level >= 2")$role_name
+  dbGetQuery(con, "SELECT role_name FROM config.shiny_user_roles WHERE perm_level >= 2")$role_name
 }
 
 
 #' Get Permission Level for a Role from Database
 #'
-#' Fetches the numeric permission level for a given role from \code{public.user_roles}.
+#' Fetches the numeric permission level for a given role from \code{config.shiny_user_roles}.
 #' Use this as an alternative to the hardcoded mapping in \code{custom_permission_level()}
 #' when a PostgreSQL connection is available.
 #'
@@ -788,7 +788,7 @@ custom_get_privileged_roles <- function(con) {
 #' @export
 custom_get_permission_level <- function(con, user_role) {
   result <- dbGetQuery(con,
-    "SELECT perm_level FROM public.user_roles WHERE role_name = $1",
+    "SELECT perm_level FROM config.shiny_user_roles WHERE role_name = $1",
     params = list(user_role))
   if (nrow(result) == 0) return(0L)
   as.integer(result$perm_level)
