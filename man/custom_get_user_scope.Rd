@@ -4,32 +4,36 @@
 \alias{custom_get_user_scope}
 \title{Get User Scope from PostgreSQL}
 \usage{
-custom_get_user_scope(con, user_name, user_role)
+custom_get_user_scope(con, user_name, user_role, with_periods = FALSE)
 }
 \arguments{
-\item{con}{A valid PostgreSQL database connection (e.g., from `DBI::dbConnect`).}
+\item{con}{A valid PostgreSQL database connection (e.g., from \code{DBI::dbConnect}).}
 
-\item{user_name}{the name of the user from the login}
+\item{user_name}{The full name of the logged-in user.}
 
-\item{user_role}{the user role - can be retrieved via `custom_retrieve_user_role()` but should be done before the function call}
+\item{user_role}{The user role, retrieved via \code{custom_retrieve_user_role_v2()}.}
+
+\item{with_periods}{Logical. If \code{FALSE} (default), returns a named list of
+\code{service_user_id} vectors for the current point in time (backward-compatible).
+If \code{TRUE}, returns a named list of data.frames with columns
+\code{service_user_id}, \code{start_date}, and \code{end_date} (\code{NA} end_date
+means the person is still active in this scope). Use together with
+\code{\link{scoped_data_for_period}} to correctly attribute historical KPI data.}
 }
 \value{
-A named list with vectors of service user IDs for the following services:
 \describe{
-  \item{crm}{User IDs for the CRM system.}
-  \item{billomat_templates}{User IDs for Billomat templates.}
-  \item{gsheet_videocalls}{User IDs for Google Sheets Video Calls.}
-  \item{sipgate}{User IDs for Sipgate.}
-  \item{msgraph}{User IDs for Microsoft Graph.}
+  \item{with_periods = FALSE}{Named list of \code{service_user_id} integer vectors,
+    one entry per service (e.g. \code{$sipgate}, \code{$crm}). Contains only IDs
+    active at the current date.}
+  \item{with_periods = TRUE}{Named list of data.frames with columns
+    \code{service_user_id}, \code{start_date}, \code{end_date} per service.}
 }
 }
 \description{
-Retrieves the user-specific service scopes from the database based on the authenticated user name
-and their role. The function queries the `get_service_users_in_scope` database function and
-returns a list of user IDs for each connected service.
+Retrieves the user-specific service scopes from the database based on the authenticated
+user name and their role. Queries \code{config.get_service_users_in_scope} and returns
+either a simple ID list (for permission checks) or a period table (for historical joins).
 }
-\details{
-The user role is automatically retrieved via `custom_retrieve_user_role()`. If the user role
-falls under certain privileged roles, a placeholder user may be used in the query inside the database.
-get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin
+\seealso{
+\code{\link{scoped_data_for_period}}
 }
