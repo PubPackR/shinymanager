@@ -28,6 +28,7 @@ CREATE OR REPLACE FUNCTION config.get_person_scope_by_fullname(
     ROWS 1000
 
 AS $BODY$
+#variable_conflict use_column
 DECLARE
     v_start_person_id BIGINT;
 BEGIN
