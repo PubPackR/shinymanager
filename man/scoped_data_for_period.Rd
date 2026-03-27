@@ -12,7 +12,7 @@ scoped_data_for_period(scoped_ids_periods, full_kpi_data, kpi_month_col)
 \code{custom_get_user_scope(with_periods = TRUE)}, e.g. \code{scope$sipgate}.}
 
 \item{full_kpi_data}{A data.frame with at minimum a \code{service_user_id} column
-and the column named by \code{kpi_month_col} (first day of month as \code{Date}).}
+and the column named by \code{kpi_month_col} (a \code{Date} column).}
 
 \item{kpi_month_col}{Character. Name of the month column in \code{full_kpi_data}.}
 }
@@ -27,6 +27,11 @@ Joins a KPI dataset against the scope periods returned by
 where the KPI month falls within a person's scope period.
 }
 \details{
+Comparison is done at \strong{month granularity}: both the KPI date and the
+scope \code{start_date}/\code{end_date} are normalized to the first day of
+their respective month before comparison. A partial month at the start or end
+of a scope period is therefore treated as fully included.
+
 Future months (beyond today) are automatically included for persons whose
 \code{end_date} is \code{NA} (still active in scope).
 }
