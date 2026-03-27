@@ -1,17 +1,18 @@
 -- FUNCTION: config.get_service_users_in_scope(text, text)
--- Extends the original function to also return a `month` column by joining
--- with the updated config.get_person_scope_by_fullname(), which now returns
--- one row per (person_id, month). This allows R modules to perform
--- historical right-joins via custom_get_user_scope(with_months = TRUE).
+-- Returns the service-level scope for a user as (personio_user_id, connected_service,
+-- service_user_id, start_date, end_date). Each row represents one person's mapping
+-- to a service system and the period they were under this manager's scope.
 --
--- DEPLOY ORDER: create_user_roles.sql + get_person_scope_by_fullname.sql must be deployed first.
+-- NULL end_date means the person is still active in this scope.
+--
+-- DEPLOY ORDER: config.get_person_scope_by_fullname must be deployed first.
 
 -- DROP FUNCTION IF EXISTS config.get_service_users_in_scope(text, text);
 
 CREATE OR REPLACE FUNCTION config.get_service_users_in_scope(
 	full_name text,
 	user_role text)
-    RETURNS TABLE(personio_user_id bigint, connected_service text, service_user_id bigint, month date)
+    RETURNS TABLE(personio_user_id bigint, connected_service text, service_user_id bigint, start_date date, end_date date)
     LANGUAGE 'plpgsql'
     COST 100
     STABLE PARALLEL UNSAFE
@@ -31,7 +32,7 @@ BEGIN
     END IF;
 
     RETURN QUERY
-    SELECT m.personio_user_id, m.connected_service, m.service_user_id, s.month
+    SELECT m.personio_user_id, m.connected_service, m.service_user_id, s.start_date, s.end_date
     FROM mapping.vw_service_users m
     JOIN config.get_person_scope_by_fullname(effective_full_name) s ON s.person_id = m.personio_user_id;
 END;

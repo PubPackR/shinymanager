@@ -702,42 +702,38 @@ custom_retrieve_user_role_v2 <- function(user_name, path_to_user_db = "../../bas
 
 #' Get User Scope from PostgreSQL
 #'
-#' Retrieves the user-specific service scopes from the database based on the authenticated user name
-#' and their role. The function queries the `get_service_users_in_scope` database function and
-#' returns a list of user IDs for each connected service.
+#' Retrieves the user-specific service scopes from the database based on the authenticated
+#' user name and their role. Queries \code{config.get_service_users_in_scope} and returns
+#' either a simple ID list (for permission checks) or a period table (for historical joins).
 #'
-#' @param con A valid PostgreSQL database connection (e.g., from `DBI::dbConnect`).
-#' @param user_name the name of the user from the login
-#' @param user_role  the user role - can be retrieved via `custom_retrieve_user_role()` but should be done before the function call
-#' @param with_months Logical. If FALSE (default), returns a named list of service_user_id vectors
-#'   (backward-compatible). If TRUE, returns a named list of data.frames with columns
-#'   \code{service_user_id} and \code{month}, covering the full employment period of each
-#'   scoped person. Use this for historical right-joins.
+#' @param con A valid PostgreSQL database connection (e.g., from \code{DBI::dbConnect}).
+#' @param user_name The full name of the logged-in user.
+#' @param user_role The user role, retrieved via \code{custom_retrieve_user_role_v2()}.
+#' @param with_periods Logical. If \code{FALSE} (default), returns a named list of
+#'   \code{service_user_id} vectors for the current point in time (backward-compatible).
+#'   If \code{TRUE}, returns a named list of data.frames with columns
+#'   \code{service_user_id}, \code{start_date}, and \code{end_date} (\code{NA} end_date
+#'   means the person is still active in this scope). Use together with
+#'   \code{\link{scoped_data_for_period}} to correctly attribute historical KPI data.
 #'
-#' @return If \code{with_months = FALSE}: a named list with vectors of service user IDs per service.
-#'   If \code{with_months = TRUE}: a named list of data.frames with columns \code{service_user_id}
-#'   and \code{month} (first day of each month as Date) per service.
+#' @return
 #' \describe{
-#'   \item{crm}{User IDs for the CRM system.}
-#'   \item{billomat_templates}{User IDs for Billomat templates.}
-#'   \item{gsheet_videocalls}{User IDs for Google Sheets Video Calls.}
-#'   \item{sipgate}{User IDs for Sipgate.}
-#'   \item{msgraph}{User IDs for Microsoft Graph.}
+#'   \item{with_periods = FALSE}{Named list of \code{service_user_id} integer vectors,
+#'     one entry per service (e.g. \code{$sipgate}, \code{$crm}). Contains only IDs
+#'     active at the current date.}
+#'   \item{with_periods = TRUE}{Named list of data.frames with columns
+#'     \code{service_user_id}, \code{start_date}, \code{end_date} per service.}
 #' }
 #'
-#' @details
-#' The user role is automatically retrieved via `custom_retrieve_user_role()`. If the user role
-#' falls under certain privileged roles, a placeholder user may be used in the query inside the database.
-#' config.get_service_users_in_scope($1, $2) is a db function and found in the postgres pgadmin.
-#'
-#' When \code{with_months = TRUE}, the DB function must return an additional \code{month} column.
-#' Use this mode together with a right-join on \code{(service_user_id, month)} to correctly
-#' attribute historical data to the team that was active at that time.
-#'
+#' @seealso \code{\link{scoped_data_for_period}}
 #' @export
-custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE) {
+custom_get_user_scope <- function(con, user_name, user_role, with_periods = FALSE) {
 
-  result <- dbGetQuery(con, "SELECT * FROM config.get_service_users_in_scope($1, $2);", params = list(user_name, user_role))
+  result <- dbGetQuery(
+    con,
+    "SELECT * FROM config.get_service_users_in_scope($1, $2);",
+    params = list(user_name, user_role)
+  )
 
   if (nrow(result) == 0) {
     message(sprintf(
@@ -747,17 +743,68 @@ custom_get_user_scope <- function(con, user_name, user_role, with_months = FALSE
     return(list())
   }
 
-  if (!with_months) {
-    if ("month" %in% names(result)) {
-      # New DB format: filter to current month to restore backward-compatible behaviour
-      current_month <- as.Date(format(Sys.Date(), "%Y-%m-01"))
-      result <- result[result$month == current_month, ]
-    }
-    deduped <- unique(result[, c("connected_service", "service_user_id")])
+  if (!with_periods) {
+    today <- Sys.Date()
+    current <- result[
+      result$start_date <= today &
+      (is.na(result$end_date) | result$end_date >= today),
+    ]
+    deduped <- unique(current[, c("connected_service", "service_user_id")])
     return(split(deduped$service_user_id, deduped$connected_service))
   }
 
-  split(result[, c("service_user_id", "month")], result$connected_service)
+  split(result[, c("service_user_id", "start_date", "end_date")], result$connected_service)
+}
+
+
+#' Filter KPI Data to Scoped Periods
+#'
+#' Joins a KPI dataset against the scope periods returned by
+#' \code{\link{custom_get_user_scope}(with_periods = TRUE)} and keeps only rows
+#' where the KPI month falls within a person's scope period.
+#'
+#' Comparison is done at \strong{month granularity}: both the KPI date and the
+#' scope \code{start_date}/\code{end_date} are normalized to the first day of
+#' their respective month before comparison. A partial month at the start or end
+#' of a scope period is therefore treated as fully included.
+#'
+#' Future months (beyond today) are automatically included for persons whose
+#' \code{end_date} is \code{NA} (still active in scope).
+#'
+#' @param scoped_ids_periods A data.frame with columns \code{service_user_id},
+#'   \code{start_date}, \code{end_date} — one element from the list returned by
+#'   \code{custom_get_user_scope(with_periods = TRUE)}, e.g. \code{scope$sipgate}.
+#' @param full_kpi_data A data.frame with at minimum a \code{service_user_id} column
+#'   and the column named by \code{kpi_month_col} (a \code{Date} column).
+#' @param kpi_month_col Character. Name of the month column in \code{full_kpi_data}.
+#'
+#' @return \code{full_kpi_data} filtered to rows where the KPI month falls within
+#'   the person's scope period. The \code{start_date} and \code{end_date} columns
+#'   are dropped from the result.
+#'
+#' @seealso \code{\link{custom_get_user_scope}}
+#' @export
+scoped_data_for_period <- function(scoped_ids_periods, full_kpi_data, kpi_month_col) {
+
+  stopifnot(
+    is.data.frame(scoped_ids_periods),
+    is.data.frame(full_kpi_data),
+    is.character(kpi_month_col),
+    length(kpi_month_col) == 1,
+    kpi_month_col %in% names(full_kpi_data),
+    "service_user_id" %in% names(full_kpi_data)
+  )
+
+  joined <- merge(full_kpi_data, scoped_ids_periods, by = "service_user_id", sort = FALSE)
+
+  kpi_month <- as.Date(format(joined[[kpi_month_col]], "%Y-%m-01"))
+  scope_start <- as.Date(format(joined$start_date, "%Y-%m-01"))
+  scope_end   <- as.Date(format(joined$end_date,   "%Y-%m-01"))
+
+  keep <- kpi_month >= scope_start & (is.na(joined$end_date) | kpi_month <= scope_end)
+
+  result <- joined[keep, !names(joined) %in% c("start_date", "end_date")]
+  unique(result)
 }
 
 
