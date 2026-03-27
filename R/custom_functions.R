@@ -803,7 +803,8 @@ scoped_data_for_period <- function(scoped_ids_periods, full_kpi_data, kpi_month_
 
   keep <- kpi_month >= scope_start & (is.na(joined$end_date) | kpi_month <= scope_end)
 
-  joined[keep, !names(joined) %in% c("start_date", "end_date")]
+  result <- joined[keep, !names(joined) %in% c("start_date", "end_date")]
+  unique(result)
 }
 
 
