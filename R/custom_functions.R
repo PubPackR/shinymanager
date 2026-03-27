@@ -763,6 +763,11 @@ custom_get_user_scope <- function(con, user_name, user_role, with_periods = FALS
 #' \code{\link{custom_get_user_scope}(with_periods = TRUE)} and keeps only rows
 #' where the KPI month falls within a person's scope period.
 #'
+#' Comparison is done at \strong{month granularity}: both the KPI date and the
+#' scope \code{start_date}/\code{end_date} are normalized to the first day of
+#' their respective month before comparison. A partial month at the start or end
+#' of a scope period is therefore treated as fully included.
+#'
 #' Future months (beyond today) are automatically included for persons whose
 #' \code{end_date} is \code{NA} (still active in scope).
 #'
@@ -770,7 +775,7 @@ custom_get_user_scope <- function(con, user_name, user_role, with_periods = FALS
 #'   \code{start_date}, \code{end_date} — one element from the list returned by
 #'   \code{custom_get_user_scope(with_periods = TRUE)}, e.g. \code{scope$sipgate}.
 #' @param full_kpi_data A data.frame with at minimum a \code{service_user_id} column
-#'   and the column named by \code{kpi_month_col} (first day of month as \code{Date}).
+#'   and the column named by \code{kpi_month_col} (a \code{Date} column).
 #' @param kpi_month_col Character. Name of the month column in \code{full_kpi_data}.
 #'
 #' @return \code{full_kpi_data} filtered to rows where the KPI month falls within
@@ -781,7 +786,16 @@ custom_get_user_scope <- function(con, user_name, user_role, with_periods = FALS
 #' @export
 scoped_data_for_period <- function(scoped_ids_periods, full_kpi_data, kpi_month_col) {
 
-  joined <- merge(full_kpi_data, scoped_ids_periods, by = "service_user_id")
+  stopifnot(
+    is.data.frame(scoped_ids_periods),
+    is.data.frame(full_kpi_data),
+    is.character(kpi_month_col),
+    length(kpi_month_col) == 1,
+    kpi_month_col %in% names(full_kpi_data),
+    "service_user_id" %in% names(full_kpi_data)
+  )
+
+  joined <- merge(full_kpi_data, scoped_ids_periods, by = "service_user_id", sort = FALSE)
 
   kpi_month <- as.Date(format(joined[[kpi_month_col]], "%Y-%m-01"))
   scope_start <- as.Date(format(joined$start_date, "%Y-%m-01"))
