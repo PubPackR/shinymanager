@@ -17,7 +17,8 @@ custom_encrypt_db(
 \arguments{
 \item{df}{The dataframe to be encrypted.}
 
-\item{name_of_secret}{The name of the secret that encrypts the data.}
+\item{name_of_secret}{Ignored: the key comes from Google Secret Manager
+(\code{studyflix-bonusdb-key}). Kept so existing calls keep working.}
 
 \item{columns_to_encrypt}{The columns that need to be encrpyted.}
 
@@ -25,9 +26,9 @@ custom_encrypt_db(
 
 \item{key}{The key (Optional).}
 
-\item{path_to_keys_db}{Path to keys_database.sqlite (optional).}
+\item{path_to_keys_db}{Ignored, see \code{name_of_secret}.}
 
-\item{path_to_user_db}{Path to shiny_users.sqlite (optional).}
+\item{path_to_user_db}{Ignored, see \code{name_of_secret}.}
 }
 \value{
 The specified columns of the database table gets encrypted
