@@ -306,12 +306,13 @@ custom_encrypt_data <- function(data_df,
 #' You are able to specifiy which columns you want to encrypt.
 #'
 #' @param df The dataframe to be encrypted.
-#' @param name_of_secret The name of the secret that encrypts the data.
+#' @param name_of_secret Ignored: the key comes from Google Secret Manager
+#'   (`studyflix-bonusdb-key`). Kept so existing calls keep working.
 #' @param columns_to_encrypt The columns that need to be encrpyted.
 #' @param base_app Boolean indicating if this function is used in a base_app (Optional)
 #' @param key The key (Optional).
-#' @param path_to_keys_db Path to keys_database.sqlite (optional).
-#' @param path_to_user_db Path to shiny_users.sqlite (optional).
+#' @param path_to_keys_db Ignored, see `name_of_secret`.
+#' @param path_to_user_db Ignored, see `name_of_secret`.
 #' @return The specified columns of the database table gets encrypted
 #' @export
 custom_encrypt_db <- function(df, 
@@ -325,13 +326,7 @@ custom_encrypt_db <- function(df,
   columns_to_encrypt <- columns_to_encrypt %||% names(df)
   
   if(!base_app) {
-    public_key <- custom_access_keys_2(name_of_secret,
-                                       path_to_keys_db = path_to_keys_db,
-                                       path_to_user_db = path_to_user_db) 
-    
-    encrypted_api_key <- readLines("../../keys/BonusDB/bonusDBKey.txt")
-    
-    key <- safer::decrypt_string(encrypted_api_key, key = public_key)  
+    key <- secretsR::secret_get("studyflix-bonusdb-key")
   }
   
   df_encrypted[columns_to_encrypt] <- lapply(df[columns_to_encrypt], function(col) {
@@ -351,12 +346,13 @@ custom_encrypt_db <- function(df,
 #' You are able to specifiy which columns you want to decrypt.
 #'
 #' @param df The dataframe to be decrypted.
-#' @param name_of_secret The name of the secret that decrypts the data.
+#' @param name_of_secret Ignored: the key comes from Google Secret Manager
+#'   (`studyflix-bonusdb-key`). Kept so existing calls keep working.
 #' @param columns_to_decrypt The columns that need to be decrpyted.
 #' @param base_app Boolean indicating if this function is used in a base_app (Optional).
 #' @param key The key (Optional).
-#' @param path_to_keys_db Path to keys_database.sqlite (optional).
-#' @param path_to_user_db Path to shiny_users.sqlite (optional).
+#' @param path_to_keys_db Ignored, see `name_of_secret`.
+#' @param path_to_user_db Ignored, see `name_of_secret`.
 #' @return The specified columns of the database table gets decrypted
 #' @export
 custom_decrypt_db <- function(df, 
@@ -370,13 +366,7 @@ custom_decrypt_db <- function(df,
   columns_to_decrpyt <- columns_to_decrypt %||% names(df)  
   
   if(!base_app) {
-    public_key <- custom_access_keys_2(name_of_secret,
-                                       path_to_keys_db = path_to_keys_db,
-                                       path_to_user_db = path_to_user_db) 
-    
-    encrypted_api_key <- readLines("../../keys/BonusDB/bonusDBKey.txt")
-    
-    key <- safer::decrypt_string(encrypted_api_key, key = public_key)  
+    key <- secretsR::secret_get("studyflix-bonusdb-key")
   }
   
   df_decrypted[columns_to_decrypt] <- lapply(df[columns_to_decrypt], function(col) {

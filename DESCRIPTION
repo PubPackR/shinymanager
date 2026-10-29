@@ -1,6 +1,6 @@
 Package: shinymanager
 Title: Authentication Management for 'Shiny' Applications
-Version: 1.0.524
+Version: 1.0.525
 Authors@R: c(
     person("Benoit", "Thieurmel", email = "bthieurmel@gmail.com", role = c("aut", "cre")),
     person("Victor", "Perrier", email = "victor.perrier@dreamRs.fr", role = c("aut"))
@@ -25,7 +25,8 @@ Imports:
     scrypt,
     yaml,
     glue,
-    getPass
+    getPass,
+    secretsR (>= 0.2.0)
 Suggests: 
     keyring,
     testthat (>= 2.1.0),
@@ -34,3 +35,5 @@ Suggests:
     RPostgres,
     sparklyr
 VignetteBuilder: knitr
+Remotes:
+    PubPackR/secretsR@ef27b47610de34f69e8d3f920030900601a6d041
