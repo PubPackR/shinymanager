@@ -14,8 +14,9 @@
 -- - UNION (deduplicating) is used in the recursive CTE to prevent infinite recursion
 --   if a cycle exists in position_history data.
 -- - Overlapping periods per person are merged via gaps-and-islands approach.
--- - The manager themselves is included for the periods they actually had direct
---   reports (not their full employment period).
+-- - The person themselves is included for every period of their own position
+--   history, also when nobody reports to them (people without reports would
+--   otherwise have an empty scope).
 
 -- DROP FUNCTION IF EXISTS config.get_person_scope_by_fullname(text);
 
@@ -93,9 +94,11 @@ BEGIN
             GROUP BY person_id, grp
         ),
 
-        -- Manager's own scope periods: the periods during which they actually had
-        -- direct reports (derived from position_history entries pointing to them).
-        -- Uses gaps-and-islands to merge adjacent/overlapping management periods.
+        -- The person's own scope periods: every period of their own position history,
+        -- whether or not anyone reports to them at the time. Restricting this to
+        -- periods with direct reports left people without current reports with an
+        -- empty scope, not even their own data.
+        -- Uses gaps-and-islands to merge adjacent/overlapping position periods.
         manager_islands AS (
             SELECT
                 start_date,
@@ -109,7 +112,7 @@ BEGIN
                     start_date,
                     COALESCE(end_date, '9999-12-31'::date) AS end_date
                 FROM raw.personio_person_position_history
-                WHERE superior = v_start_person_id
+                WHERE person_id = v_start_person_id
             ) d
         ),
         manager_grouped AS (
@@ -136,7 +139,7 @@ BEGIN
 
         UNION ALL
 
-        -- Manager themselves — one row per continuous management period
+        -- The person themselves — one row per continuous period of their own position history
         SELECT
             v_start_person_id                                                       AS person_id,
             start_date,
