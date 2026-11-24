@@ -41,7 +41,7 @@ CREATE INDEX idx_shiny_accounts_role_name ON config.shiny_accounts (role_name);
 COMMENT ON TABLE config.shiny_accounts IS 'One personal account per person for the Shiny dashboards. Identity comes from the Entra login (oauth2-proxy), not from a password. Shared or team accounts do not exist here.';
 COMMENT ON COLUMN config.shiny_accounts.email IS 'Entra e-mail address as forwarded by oauth2-proxy in X-Forwarded-Email; the login key of the account.';
 COMMENT ON COLUMN config.shiny_accounts.personio_person_id IS 'Personio person this account belongs to; drives the name-based scope of the dashboards.';
-COMMENT ON COLUMN config.shiny_accounts.role_name IS 'Dashboard role; its permission level comes from config.shiny_user_roles.';
+COMMENT ON COLUMN config.shiny_accounts.role_name IS 'Dashboard role; its permission level comes from config.shiny_user_roles. ON DELETE CASCADE (house standard): deleting a role deletes every account that has it.';
 COMMENT ON COLUMN config.shiny_accounts.is_active IS 'FALSE blocks the login without deleting the account and its app access.';
 
 CREATE OR REPLACE TRIGGER trigger_set_updated_at
@@ -94,7 +94,7 @@ CREATE TABLE config.shiny_impersonation_log (
     actor_email text NOT NULL,
     target_email text NOT NULL,
     app_name text NOT NULL,
-    started_at timestamp without time zone NOT NULL DEFAULT now(),
+    started_at timestamp without time zone NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
 
     CONSTRAINT pk_shiny_impersonation_log PRIMARY KEY (id)
 );
@@ -123,7 +123,7 @@ CREATE TABLE config.shiny_login_log (
 
     email text NOT NULL,
     app_name text NOT NULL,
-    logged_in_at timestamp without time zone NOT NULL DEFAULT now(),
+    logged_in_at timestamp without time zone NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
 
     CONSTRAINT pk_shiny_login_log PRIMARY KEY (id)
 );

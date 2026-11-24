@@ -14,6 +14,7 @@
 -- 1. Temp table with the export from export_shiny_credentials_sqlite.sql
 -- ---------------------------------------------------------------------------
 
+DROP VIEW IF EXISTS tmp_shiny_account_match;
 DROP TABLE IF EXISTS tmp_shiny_credentials;
 
 CREATE TEMP TABLE tmp_shiny_credentials (
@@ -56,27 +57,41 @@ per_account AS (
     FROM tmp_shiny_credentials c
     LEFT JOIN candidates m ON m.account_name = c.account_name
     GROUP BY c.account_name
+),
+matched AS (
+    SELECT pa.account_name,
+           c.permission,
+           c.applications,
+           pa.n_persons,
+           CASE WHEN pa.n_persons = 1 THEN pa.person_id END AS person_id,
+           lower(trim(p.email)) AS email,
+           coalesce(p.is_deleted, false) AS is_deleted,
+           coalesce(act.has_open_position, false) AS has_open_position,
+           act.last_end_date,
+           CASE
+               WHEN pa.n_persons = 0 THEN 'no Personio match (technical or team account?)'
+               WHEN pa.n_persons > 1 THEN 'several Personio matches'
+               WHEN p.is_deleted OR NOT coalesce(act.has_open_position, false) THEN 'person has left'
+               WHEN p.email IS NULL OR trim(p.email) = '' THEN 'no e-mail in Personio'
+               WHEN c.permission IS NULL OR trim(c.permission) = '' THEN 'no role in the SQLite'
+               ELSE 'ok'
+           END AS status
+    FROM per_account pa
+    JOIN tmp_shiny_credentials c ON c.account_name = pa.account_name
+    LEFT JOIN raw.personio_persons p ON p.id = CASE WHEN pa.n_persons = 1 THEN pa.person_id END
+    LEFT JOIN activity act ON act.person_id = p.id
 )
-SELECT pa.account_name,
-       c.permission,
-       c.applications,
-       pa.n_persons,
-       CASE WHEN pa.n_persons = 1 THEN pa.person_id END AS person_id,
-       lower(trim(p.email)) AS email,
-       coalesce(p.is_deleted, false) AS is_deleted,
-       coalesce(act.has_open_position, false) AS has_open_position,
-       act.last_end_date,
+-- Two accounts that resolve to the same person would be merged into one by
+-- the fill (one e-mail, one role); they are held back until resolved.
+SELECT account_name, permission, applications, n_persons, person_id, email,
+       is_deleted, has_open_position, last_end_date,
        CASE
-           WHEN pa.n_persons = 0 THEN 'no Personio match (technical or team account?)'
-           WHEN pa.n_persons > 1 THEN 'several Personio matches'
-           WHEN p.is_deleted OR NOT coalesce(act.has_open_position, false) THEN 'person has left'
-           WHEN p.email IS NULL OR trim(p.email) = '' THEN 'no e-mail in Personio'
-           ELSE 'ok'
+           WHEN status = 'ok'
+            AND count(*) FILTER (WHERE status = 'ok') OVER (PARTITION BY email) > 1
+           THEN 'several accounts for the same person'
+           ELSE status
        END AS status
-FROM per_account pa
-JOIN tmp_shiny_credentials c ON c.account_name = pa.account_name
-LEFT JOIN raw.personio_persons p ON p.id = CASE WHEN pa.n_persons = 1 THEN pa.person_id END
-LEFT JOIN activity act ON act.person_id = p.id;
+FROM matched;
 
 -- ---------------------------------------------------------------------------
 -- 3. Checks: everything that is not 'ok' is NOT filled
@@ -95,12 +110,11 @@ FROM tmp_shiny_account_match
 WHERE status = 'ok'
   AND email NOT LIKE '%@studyflix.de';
 
--- 3c. Two accounts that resolve to the same e-mail (would violate uq_shiny_accounts_email)
-SELECT email, string_agg(account_name, ', ') AS accounts
+-- 3c. Accounts that resolve to the same person; not filled until resolved
+SELECT email, string_agg(account_name, ', ' ORDER BY account_name) AS accounts
 FROM tmp_shiny_account_match
-WHERE status = 'ok'
-GROUP BY email
-HAVING count(*) > 1;
+WHERE status = 'several accounts for the same person'
+GROUP BY email;
 
 -- 3d. Roles of accounts to be filled that are missing in config.shiny_user_roles
 --     (fill_shiny_accounts.sql adds them with perm_level 0, Q22)
