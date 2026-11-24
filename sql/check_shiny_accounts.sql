@@ -9,6 +9,10 @@
 -- "first_name name" (case-insensitive, trimmed) or one of the person's aliases
 -- in mapping.user_aliases. Only active persons are filled: not deleted in
 -- Personio and with a position that has not ended.
+--
+-- Role mapping: an empty permission is the normal case and means level 0 in R
+-- (custom_functions.R, TRUE ~ 0); it becomes 'Mitarbeiter' (Q26). 'Head of'
+-- with a space never matched 'Headof' in R; it becomes 'Headof' (Q27).
 
 -- ---------------------------------------------------------------------------
 -- 1. Temp table with the export from export_shiny_credentials_sqlite.sql
@@ -60,7 +64,11 @@ per_account AS (
 ),
 matched AS (
     SELECT pa.account_name,
-           c.permission,
+           CASE
+               WHEN c.permission IS NULL OR trim(c.permission) = '' THEN 'Mitarbeiter'
+               WHEN trim(c.permission) = 'Head of' THEN 'Headof'
+               ELSE trim(c.permission)
+           END AS permission,
            c.applications,
            pa.n_persons,
            CASE WHEN pa.n_persons = 1 THEN pa.person_id END AS person_id,
@@ -73,7 +81,6 @@ matched AS (
                WHEN pa.n_persons > 1 THEN 'several Personio matches'
                WHEN p.is_deleted OR NOT coalesce(act.has_open_position, false) THEN 'person has left'
                WHEN p.email IS NULL OR trim(p.email) = '' THEN 'no e-mail in Personio'
-               WHEN c.permission IS NULL OR trim(c.permission) = '' THEN 'no role in the SQLite'
                ELSE 'ok'
            END AS status
     FROM per_account pa

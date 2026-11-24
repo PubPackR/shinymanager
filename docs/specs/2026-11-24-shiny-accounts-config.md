@@ -41,6 +41,10 @@ The parent ticket replaces this with a login by the Entra e-mail (`X-Forwarded-E
 - **Q25 Tables and keys:** `shiny_accounts`, `shiny_app_access` (a row per app and per `_test`),
   `shiny_impersonation_log` and `shiny_login_log` (text, no FK), `personio_person_id` named as in
   `mapping.user_aliases`.
+- **Q26 Role name for empty roles:** `Mitarbeiter`, `perm_level` 0 (62 of 77 accounts in the
+  trial run on 24.11.2026 had an empty role, which R treats as level 0).
+- **Q27 The account with `Head of`:** migrated as `Headof` (level 2); `Head of` with a space
+  never matched in R and gave level 0.
 
 Earlier decisions from the analysis that shape this ticket (parent ticket): Q1 login by Entra
 e-mail without password; Q8 login history starts new; Q9 tables via `/create-db-schema`; Q10 app
