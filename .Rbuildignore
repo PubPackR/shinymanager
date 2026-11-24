@@ -16,3 +16,4 @@ examples/demo/rsconnect
 
 inst/sql_config/qf_pg_template.yml
 test_db.R
+^CONTEXT\.md$
