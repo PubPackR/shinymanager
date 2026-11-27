@@ -64,6 +64,12 @@ on the admin or product list see all dashboards without own app access rows.
   every app gets "auto" with its next redeploy, tested first with the pilot on `_test`.
 - **Q59 Fallback instead of rejection until T5:** without header or account the dashboard shows
   the old login window; rejection comes with T5.
+- **Q61 `billomat_db_key`:** maps to `studyflix-legacy-data-key-billomat`; the values are
+  identical (checked by Moritz 27.11.2026, `identical()` TRUE).
+- **Q62 Bonus report password:** new secret `studyflix-shiny-bonus-report-xlsx-password`, filled
+  by Moritz from `keys_database` without printing the value.
+- **Q63 Read access:** Moritz grants `sa-shiny` `secretAccessor` on the two new secrets
+  (`studyflix-shiny-admin-list` and the one from Q62) and informs Esta.
 
 ## Affected
 
