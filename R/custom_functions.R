@@ -9,6 +9,9 @@
 #'
 #' @export
 custom_access_keys <- function(requested_data){
+  if (!is.null(entra_session_login())) {
+    return(entra_access_key(requested_data))
+  }
   is_interactive <- custom_interactive()
   if(is_interactive) {
    warning("The function custom_access_keys is deprecated. Please use custom_access_keys_2 instead.") 
@@ -70,8 +73,13 @@ custom_access_keys <- function(requested_data){
 #' @export
 custom_access_keys_2 <- function(name_of_secret,
                                  path_to_keys_db = "../../base-data/database/keys_database.sqlite",
-                                 path_to_user_db = "../../base-data/database/shiny_users.sqlite", 
+                                 path_to_user_db = "../../base-data/database/shiny_users.sqlite",
                                  preset_key = NA_character_) {
+  # A session with Entra login has no password: its keys come from Secret
+  # Manager, and keys it does not need resolve to NULL (R/entra_login.R).
+  if (!is.null(entra_session_login())) {
+    return(entra_access_key(name_of_secret))
+  }
   credentials <- custom_retrieve_credentials(preset_key = preset_key)
   user_name <- credentials[[1]]
   password <- credentials[[2]]
@@ -396,7 +404,11 @@ custom_decrypt_db <- function(df,
 #' @return An integer representing the user's permission level.
 #' @export
 custom_permission_level <- function(path_to_user_db = "../../base-data/database/shiny_users.sqlite", preset_key = NA_character_) {
-  
+  login <- entra_session_login()
+  if (!is.null(login)) {
+    return(role_permission_level(login$permission))
+  }
+
   user_name <- custom_retrieve_credentials(password = FALSE, preset_key = preset_key)[[1]]
   if(custom_interactive()) {
     message("Please use the new function custom_get_user_scope to retrieve the data visible for user.")
@@ -419,24 +431,30 @@ custom_permission_level <- function(path_to_user_db = "../../base-data/database/
   })
   
 
-  # TODO: This list must stay in sync with config.shiny_user_roles in the database.
-  # When a PostgreSQL connection is available, use custom_get_permission_level(con, user_role) instead.
-  determine_permission_level <- function(permission) {
-    permission_level <- tryCatch({
-      dplyr::case_when(
-        permission %in% c("Admin", "Entwickler", "Geschaeftsfuehrung", "Headof", "Verwaltung") ~ 2,
-        permission %in% c("Teamlead") ~ 1,
-        TRUE ~ 0
-      )
-    }, error = function(e) {
-      e$message <- custom_show_warnings(conditionMessage(e))
-      stop(e)
-    })
-    
-    return(permission_level)
-  }
-  
-  return(determine_permission_level(permission))
+  return(role_permission_level(permission))
+}
+
+
+#' Permission level of a role name
+#'
+#' TODO: This list must stay in sync with config.shiny_user_roles in the database.
+#' When a PostgreSQL connection is available, use custom_get_permission_level(con, user_role) instead.
+#'
+#' @param permission Role name(s).
+#' @return Numeric permission level: 2 privileged, 1 Teamlead, 0 otherwise.
+#' @noRd
+role_permission_level <- function(permission) {
+  # ---- start ---- #
+  tryCatch({
+    dplyr::case_when(
+      permission %in% c("Admin", "Entwickler", "Geschaeftsfuehrung", "Headof", "Verwaltung") ~ 2,
+      permission %in% c("Teamlead") ~ 1,
+      TRUE ~ 0
+    )
+  }, error = function(e) {
+    e$message <- custom_show_warnings(conditionMessage(e))
+    stop(e)
+  })
 }
 
 
@@ -463,6 +481,11 @@ custom_username <- function(preset_key = NA_character_) {
 #' @return List which contains the user_name and password
 #' @export
 custom_retrieve_credentials <- function(username = TRUE, password = TRUE, preset_key = NA_character_) {
+  # Entra login: the user of the session, no password.
+  login <- entra_session_login()
+  if (!is.null(login)) {
+    return(list(if (username) login$user, NULL))
+  }
   is_interactive <- custom_interactive()
   
   retrieve_user_name <- function(){
@@ -641,6 +664,11 @@ custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/databas
 
   message("The function custom_retrieve_user_role is depracated please use custom_retrieve_user_role_v2() instead")
 
+  login <- entra_session_login()
+  if (!is.null(login)) {
+    return(login$permission)
+  }
+
   permission <- tryCatch({
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
     on.exit(DBI::dbDisconnect(db), add = TRUE)
@@ -670,6 +698,11 @@ custom_retrieve_user_role <- function(path_to_user_db = "../../base-data/databas
 #' @return Returns the role name of the user.
 #' @export
 custom_retrieve_user_role_v2 <- function(user_name, path_to_user_db = "../../base-data/database/shiny_users.sqlite", preset_key = NA_character_){
+  # Entra login: the role comes from config, not from the SQLite.
+  login <- entra_session_login()
+  if (!is.null(login) && identical(user_name, login$user)) {
+    return(login$permission)
+  }
   permission <- tryCatch({
     db <- DBI::dbConnect(RSQLite::SQLite(), path_to_user_db)
     on.exit(DBI::dbDisconnect(db), add = TRUE)
