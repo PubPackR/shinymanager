@@ -70,6 +70,8 @@ on the admin or product list see all dashboards without own app access rows.
   by Moritz from `keys_database` without printing the value.
 - **Q63 Read access:** Moritz grants `sa-shiny` `secretAccessor` on the two new secrets
   (`studyflix-shiny-admin-list` and the one from Q62) and informs Esta.
+- **Q64 View as another person from the start page:** not offered there; "als Person ansehen"
+  lives in each dashboard (bottom right), the start page shows list members all dashboards.
 
 ## Affected
 
