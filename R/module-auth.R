@@ -341,21 +341,26 @@ auth_server <- function(input, output, session,
   # The password login used to assign global closures `key` and `user_name`.
   # They now live in package state and are read through the exported key()
   # and user_name(), which prefer the Entra login of the current session
-  # (R/entra_login.R). Semantics for password logins are unchanged: the last
-  # login of the process wins.
+  # (R/entra_login.R). Inside a session they return that session's login; the
+  # process-wide copy (last login wins, as before) only serves calls outside
+  # any session.
   observe({
     if (!is.null(input$user_pwd)) {
-      .entra_state$legacy_key <- function() {
+      key_fn <- function() {
         return(input$user_pwd)
       }
+      session$userData$shinymanager_legacy_key <- key_fn
+      .entra_state$legacy_key <- key_fn
     }
   })
 
   observe({
     if (!is.null(input$user_id)) {
-      .entra_state$legacy_user_name <- function() {
+      user_fn <- function() {
         return(input$user_id)
       }
+      session$userData$shinymanager_legacy_user_name <- user_fn
+      .entra_state$legacy_user_name <- user_fn
     }
   })
 

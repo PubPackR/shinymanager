@@ -38,4 +38,5 @@ The old password login window. Until the old user file is retired, a person with
 or without an Entra or Google identity, sees it instead of being turned away.
 
 ## Login log
-One entry per sign-in through the Entra or Google identity: who, which dashboard, which mode.
+One entry per sign-in through the Entra or Google identity: who and which dashboard. Viewing as
+another person is recorded separately as an impersonation.

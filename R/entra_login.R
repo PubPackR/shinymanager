@@ -112,6 +112,9 @@ entra_viewer_email <- function(req, is_local = interactive(),
 #' product. Fails closed: if the secret cannot be read or parsed, both lists
 #' are empty and a warning names the reason, never the content.
 #'
+#' secretsR caches secrets per R process: a new version of the list takes
+#' effect once the dashboard process restarts (e.g. after its next deploy).
+#'
 #' @param fetch Function returning the secret as a string. Injected in tests.
 #' @return List with character vectors `admin` and `product` (normalised).
 #' @export
@@ -440,11 +443,25 @@ entra_session_login <- function(session = shiny::getDefaultReactiveDomain()) {
 }
 
 
+#' Closure of the password login, preferring the current session's own
+#'
+#' @param name `"user_name"` or `"key"`.
+#' @return The closure or NULL.
+#' @noRd
+entra_legacy_fn <- function(name) {
+  # ---- start ---- #
+  session <- shiny::getDefaultReactiveDomain()
+  own <- if (!is.null(session)) session$userData[[paste0("shinymanager_legacy_", name)]]
+  own %||% .entra_state[[paste0("legacy_", name)]]
+}
+
+
 #' Name of the logged-in user
 #'
 #' Replaces the global closure that the password login used to assign. In a
-#' session with Entra login it returns that session's user; otherwise the user
-#' of the last password login in this process, as before.
+#' session with Entra login it returns that session's user; in a session with
+#' password login that session's user; outside any session the user of the
+#' last password login in this process, as before.
 #'
 #' @return Character scalar or NULL.
 #' @export
@@ -452,7 +469,7 @@ user_name <- function() {
   # ---- start ---- #
   login <- entra_session_login()
   if (!is.null(login)) return(login$user)
-  fn <- .entra_state$legacy_user_name
+  fn <- entra_legacy_fn("user_name")
   if (is.null(fn)) NULL else fn()
 }
 
@@ -460,15 +477,16 @@ user_name <- function() {
 #' Password of the logged-in user
 #'
 #' Replaces the global closure that the password login used to assign. A
-#' session with Entra login has no password and gets NULL; otherwise the
-#' password of the last password login in this process, as before.
+#' session with Entra login has no password and gets NULL; a session with
+#' password login gets its own password; outside any session the password of
+#' the last password login in this process, as before.
 #'
 #' @return Character scalar or NULL.
 #' @export
 key <- function() {
   # ---- start ---- #
   if (!is.null(entra_session_login())) return(NULL)
-  fn <- .entra_state$legacy_key
+  fn <- entra_legacy_fn("key")
   if (is.null(fn)) NULL else fn()
 }
 

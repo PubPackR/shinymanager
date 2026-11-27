@@ -159,6 +159,15 @@ test_that("user_name() and key() prefer the Entra login of the session", {
   expect_equal(user_name(), "password user")
   expect_equal(key(), "password")
 
+  # a password session gets its own login, not the last one of the process
+  own <- fake_session()
+  own$userData$shinymanager_legacy_user_name <- function() "own user"
+  own$userData$shinymanager_legacy_key <- function() "own password"
+  shiny::withReactiveDomain(own, {
+    expect_equal(user_name(), "own user")
+    expect_equal(key(), "own password")
+  })
+
   entra_set_session_login(session, entra_identity("a@studyflix.de", "Anna A", "Teamlead", "normal"))
   shiny::withReactiveDomain(session, {
     expect_equal(user_name(), "Anna A")
