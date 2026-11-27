@@ -2,8 +2,12 @@
 
 ## Account
 A personal login to the Shiny dashboards, belonging to exactly one Personio person and keyed by
-that person's Entra e-mail. There is no password: the identity comes from the Entra login in
-front of the server. Shared or team logins are not accounts.
+that person's Entra e-mail. There is no password: on the server the identity comes from the Entra login in
+front of it, on a laptop from the person's Google login. Shared or team logins are not accounts.
+
+## Display name
+The name an account appears as inside a dashboard: the person's full name in Personio. Team views
+match it against the team name.
 
 ## Role
 What an account may see inside a dashboard, expressed as a permission level: 0 own data, 1 team
@@ -23,3 +27,16 @@ a salesperson sees. Every impersonation is logged.
 
 ## Admin
 A person on the admin list. Admins include product mode and may open the account management app.
+
+## Product list and admin list
+The two hand-maintained lists of e-mails that grant product mode and admin rights. They live
+outside the account tables, and dashboards only read them. People on either list see every
+dashboard without app access of their own.
+
+## Login fallback
+The old password login window. Until the old user file is retired, a person without an account,
+or without an Entra or Google identity, sees it instead of being turned away.
+
+## Login log
+One entry per sign-in through the Entra or Google identity: who and which dashboard. Viewing as
+another person is recorded separately as an impersonation.
